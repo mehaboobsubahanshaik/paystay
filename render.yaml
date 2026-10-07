@@ -1,0 +1,64 @@
+# Render Blueprint for PayStay Hyderabad.
+# In the Render dashboard: New → Blueprint → pick this GitHub repo → Apply.
+# It creates three things in the Singapore region (closest to India):
+#   paystay-db   PostgreSQL 16 (free plan: 1 GB, expires 30 days after creation)
+#   paystay-api  the ASP.NET Core API, built from backend/PayStay.Api/Dockerfile
+#   paystay-web  the React site, built with Vite and served as static files
+#
+# Free web services sleep after 15 minutes without traffic and take about a minute to wake.
+
+databases:
+  - name: paystay-db
+    plan: free
+    region: singapore
+    databaseName: paystay
+    user: paystay
+    postgresMajorVersion: "16"
+
+services:
+  - type: web
+    name: paystay-api
+    runtime: docker
+    region: singapore
+    plan: free
+    dockerfilePath: ./backend/PayStay.Api/Dockerfile
+    dockerContext: ./backend/PayStay.Api
+    healthCheckPath: /health
+    envVars:
+      - key: PORT
+        value: "8080"
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+      # Render's own database. To use Neon instead (no 30-day expiry), delete these three lines
+      # and set DATABASE_URL in the dashboard to the URL Neon gives you (it ends with ?sslmode=require).
+      - key: DATABASE_URL
+        fromDatabase:
+          name: paystay-db
+          property: connectionString
+      - key: Jwt__Key
+        generateValue: true
+      - key: Otp__Mode
+        value: Mock
+      - key: Owner__Mobile
+        value: "9000000001"
+      # The site's address. If Render gave your site a different name, change this to match.
+      - key: Cors__Origins__0
+        value: https://paystay-web.onrender.com
+      - key: Swagger__Enabled
+        value: "true"
+
+  - type: web
+    name: paystay-web
+    runtime: static
+    buildCommand: cd frontend && npm ci && npm run build
+    staticPublishPath: frontend/dist
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      # The API's address. If Render gave your API a different name, change this to match and redeploy the site.
+      - key: VITE_API_URL
+        value: https://paystay-api.onrender.com

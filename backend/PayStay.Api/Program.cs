@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -16,11 +17,34 @@ var config = builder.Configuration;
 builder.Services.Configure<JwtOptions>(config.GetSection("Jwt"));
 builder.Services.Configure<OtpOptions>(config.GetSection("Otp"));
 var jwt = config.GetSection("Jwt").Get<JwtOptions>() ?? new JwtOptions();
-if (Encoding.UTF8.GetByteCount(jwt.Key) < 32)
-    throw new InvalidOperationException("Jwt:Key must be at least 32 characters. Set it in appsettings or the Jwt__Key environment variable.");
+if (string.IsNullOrWhiteSpace(jwt.Key))
+    throw new InvalidOperationException("Jwt:Key is missing. Set it in appsettings.json or the Jwt__Key environment variable.");
+if (!builder.Environment.IsDevelopment() && jwt.Key.StartsWith("CHANGE-ME", StringComparison.Ordinal))
+    Console.WriteLine("WARNING: Jwt__Key is still the development key. Set a long random value before going live.");
 
 // ---------- database ----------
-builder.Services.AddDbContext<AppDbContext>(o => o.UseNpgsql(config.GetConnectionString("Default")));
+// Hosts like Render, Neon and Heroku give one DATABASE_URL (postgres://user:pass@host:port/db?sslmode=require).
+// Npgsql wants key=value form, so convert it; otherwise use ConnectionStrings:Default from appsettings.
+builder.Services.AddDbContext<AppDbContext>(o => o.UseNpgsql(ConnectionStringFor(config)));
+
+static string ConnectionStringFor(IConfiguration config)
+{
+    var url = config["DATABASE_URL"];
+    if (string.IsNullOrWhiteSpace(url) || !url.StartsWith("postgres", StringComparison.OrdinalIgnoreCase))
+        return config.GetConnectionString("Default") ?? throw new InvalidOperationException("Set ConnectionStrings:Default or DATABASE_URL.");
+    var uri = new Uri(url);
+    var userInfo = uri.UserInfo.Split(':', 2);
+    var query = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(uri.Query);
+    var sslMode = (query.TryGetValue("sslmode", out var v) ? v.ToString() : "prefer").ToLowerInvariant() switch
+    {
+        "require" or "verify-ca" or "verify-full" => "Require",
+        "disable" => "Disable",
+        _ => "Prefer",
+    };
+    return $"Host={uri.Host};Port={(uri.Port > 0 ? uri.Port : 5432)};Database={uri.AbsolutePath.TrimStart('/')};" +
+           $"Username={Uri.UnescapeDataString(userInfo[0])};Password={(userInfo.Length > 1 ? Uri.UnescapeDataString(userInfo[1]) : "")};" +
+           $"SSL Mode={sslMode}";
+}
 
 // ---------- auth: JWT with roles; SignalR sends the token in the query string ----------
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer(o =>
@@ -30,7 +54,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJw
     {
         ValidateIssuer = true, ValidIssuer = jwt.Issuer,
         ValidateAudience = true, ValidAudience = jwt.Audience,
-        ValidateIssuerSigningKey = true, IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwt.Key)),
+        ValidateIssuerSigningKey = true, IssuerSigningKey = new SymmetricSecurityKey(JwtOptions.KeyBytes(jwt.Key)),
         ValidateLifetime = true, ClockSkew = TimeSpan.FromMinutes(1),
         RoleClaimType = "role", NameClaimType = "name",
     };

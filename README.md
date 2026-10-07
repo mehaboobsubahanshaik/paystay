@@ -198,9 +198,50 @@ The schema is created with `EnsureCreated` on first run. To switch to EF migrati
 | Allowed web origins | `Cors:Origins` | localhost:5173, localhost:8090 |
 | Ports (Docker) | `WEB_PORT`, `API_PORT`, `DB_PORT` in `.env` | 8090, 5090, 5433 |
 
+## Deploy to Render (free)
+
+The repo includes `render.yaml`, a Render Blueprint that creates the database, the API and the site together.
+
+1. Push the project to GitHub (see below).
+2. Sign in at https://render.com with GitHub.
+3. **New → Blueprint**, choose the `paystay` repo, click **Apply**. Render builds the API image, builds the site with Vite and
+   creates the PostgreSQL database. The first build takes 5–10 minutes.
+4. When all three show *Live*, open the site: **https://paystay-web.onrender.com** (the dashboard shows the real address).
+   API docs are at **https://paystay-api.onrender.com/swagger**.
+
+**If Render changed a name** (because `paystay-web` or `paystay-api` was already taken, it adds a suffix such as
+`paystay-web-x1y2`): open the API service → *Environment* → set `Cors__Origins__0` to the site's real address, and open
+the static site → *Environment* → set `VITE_API_URL` to the API's real address, then *Manual Deploy* the site.
+
+**What to expect on the free plan**
+- Free web services sleep after 15 minutes without traffic and take about a minute to wake; the hotel loading animation
+  shows while that happens.
+- The free Render database expires 30 days after it was created (Render warns you by email and gives 14 days' grace).
+  For a demo that must stay up longer, use a free **Neon** database instead: create one at https://neon.tech, copy its
+  connection URL (ends with `?sslmode=require`), and in the API service's *Environment* set `DATABASE_URL` to it
+  (remove the `fromDatabase` block from `render.yaml` first, or just override the value in the dashboard). Neon
+  databases don't expire.
+- OTP stays in Mock mode: the code is shown on screen, so anyone with the link can try the app.
+
+**Updating the live app**: every `git push` to `main` redeploys both services automatically.
+
+## Push to GitHub
+
+```bash
+git init
+git add .
+git commit -m "PayStay Hyderabad"
+git remote add origin https://github.com/<your-username>/paystay.git
+git branch -M main
+git push -u origin main
+```
+`.gitignore` already excludes `node_modules`, `bin`, `obj`, `dist` and `.env`. The GitHub Actions workflow in
+`.github/workflows/ci.yml` builds the backend and frontend on every push.
+
 ## Going to production
 
 - Replace `ConsoleSmsSender` with an SMS provider (MSG91 or Twilio Verify) and set `Otp:Mode` to anything other than `Mock`. SMS in India needs DLT registration.
 - Set a long random `JWT_KEY` and a real database password.
 - Set `VITE_API_URL` when the frontend and API are on different hosts, and add that host to `Cors:Origins`.
+- Hosts that give a single `DATABASE_URL` (Render, Neon, Heroku, Railway) are supported as-is; the API converts it.
 - Azure: App Service for the API, Static Web Apps for the frontend, Azure Database for PostgreSQL. Redis is optional: add it for OTP rate limiting across several API instances and as a SignalR backplane.
