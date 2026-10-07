@@ -1,0 +1,16 @@
+@api = http://localhost:5090
+
+### 1. Ask for an OTP (Mock mode returns devCode)
+POST {{api}}/api/auth/otp/request
+Content-Type: application/json
+
+{ "mobile": "9876543210", "role": "Customer" }
+
+### 2. Verify it (paste the devCode) and copy the token
+POST {{api}}/api/auth/otp/verify
+Content-Type: application/json
+
+{ "mobile": "9876543210", "code": "123456", "role": "Customer" }
+
+### 3. Catalogue (no sign-in needed)
+GET {{api}}/api/catalog

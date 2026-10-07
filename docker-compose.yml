@@ -1,0 +1,78 @@
+# PayStay Hyderabad. One command runs everything:  docker compose up --build
+#
+# Containers:  paystay-db (PostgreSQL)   paystay-api (ASP.NET Core)   paystay-web (React on nginx)
+# Ports come from .env (copy .env.example to .env to change them). Defaults:
+#   Web:       http://localhost:8090
+#   API:       http://localhost:5090  (Swagger at /swagger)
+#   Postgres:  localhost:5433  (paystay / paystay)
+#   pgAdmin:   http://localhost:5050  (only with: docker compose --profile tools up)
+name: paystay
+
+services:
+  db:
+    build: ./database
+    container_name: paystay-db
+    environment:
+      POSTGRES_DB: paystay
+      POSTGRES_USER: paystay
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-paystay}
+    ports:
+      - "${DB_PORT:-5433}:5432"
+    volumes:
+      - paystay-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U paystay -d paystay"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+  api:
+    build: ./backend/PayStay.Api
+    container_name: paystay-api
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__Default: Host=db;Port=5432;Database=paystay;Username=paystay;Password=${DB_PASSWORD:-paystay}
+      Jwt__Key: ${JWT_KEY:-CHANGE-ME-dev-only-key-for-paystay-at-least-32-characters-long}
+      Otp__Mode: Mock
+      Owner__Mobile: ${OWNER_MOBILE:-9000000001}
+      Cors__Origins__0: http://localhost:${WEB_PORT:-8090}
+      Cors__Origins__1: http://localhost:${VITE_PORT:-5173}
+      Swagger__Enabled: "true"
+    ports:
+      - "${API_PORT:-5090}:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  web:
+    build: ./frontend
+    container_name: paystay-web
+    ports:
+      - "${WEB_PORT:-8090}:80"
+    depends_on:
+      - api
+    restart: unless-stopped
+
+  # Optional database browser. Start with:  docker compose --profile tools up -d
+  pgadmin:
+    image: dpage/pgadmin4:8
+    container_name: paystay-pgadmin
+    profiles: ["tools"]
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@example.com
+      PGADMIN_DEFAULT_PASSWORD: paystay
+      PGADMIN_CONFIG_SERVER_MODE: "False"
+      PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: "False"
+    ports:
+      - "${PGADMIN_PORT:-5050}:80"
+    volumes:
+      - ./database/pgadmin/servers.json:/pgadmin4/servers.json:ro
+      - paystay-pgadmin:/var/lib/pgadmin
+    depends_on:
+      - db
+
+volumes:
+  paystay-pgdata:
+  paystay-pgadmin:

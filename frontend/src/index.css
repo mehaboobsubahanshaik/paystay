@@ -1,0 +1,40 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html { -webkit-font-smoothing: antialiased; }
+  body { @apply bg-page text-ink font-sans text-[15px] leading-relaxed; }
+  h1, h2 { @apply font-serif font-normal tracking-normal; text-wrap: balance; }
+  h1 { @apply text-3xl leading-tight; }
+  h2 { @apply text-xl leading-snug; }
+  :focus-visible { @apply outline outline-2 outline-pop outline-offset-2 rounded; }
+  @media (prefers-reduced-motion: reduce) { .animate-hotel-bob, .animate-hotel-shadow, .animate-hotel-dot { animation: none; } }
+}
+
+@layer components {
+  .btn { @apply inline-flex items-center justify-center gap-2 min-h-[42px] px-4 py-2 rounded-[10px] border border-line bg-surface font-bold text-sm text-ink hover:bg-surface-2 disabled:opacity-50 disabled:cursor-not-allowed; }
+  .btn-primary { @apply bg-ink border-ink text-white hover:bg-[#1C3762]; }
+  .btn-pop { @apply bg-pop border-pop text-[#1A1306] hover:bg-[#E8813A]; }
+  .btn-sm { @apply min-h-[34px] px-3 py-1.5 text-[13px] rounded-lg; }
+  .btn-danger { @apply text-booked; }
+  .input { @apply w-full min-h-[46px] px-3 py-2 rounded-[10px] border border-line bg-surface focus:outline-ink; }
+  .label { @apply text-[11px] uppercase tracking-[.08em] text-ink-3 font-bold; }
+  .field-label { @apply text-[13px] font-bold text-ink-2; }
+  .panel { @apply bg-surface border border-line rounded-2xl p-5 flex flex-col gap-4 min-w-0; }
+  .pill { @apply inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold whitespace-nowrap before:content-[''] before:w-1.5 before:h-1.5 before:rounded-full before:bg-current; }
+  .seg { @apply inline-flex gap-0.5 p-[3px] bg-surface-2 rounded-[10px] flex-wrap; }
+  .seg > button { @apply border-0 bg-transparent px-3.5 py-1.5 rounded-lg text-[13px] font-bold text-ink-2 min-h-[34px]; }
+  .seg > button[aria-pressed='true'] { @apply bg-surface text-ink shadow-card; }
+  .hero { @apply relative rounded-[22px] overflow-hidden text-white isolate; background: linear-gradient(165deg, #0C1E3B 0%, #244B85 52%, #E8813A 100%); }
+  .eyebrow { @apply text-xs tracking-[.14em] uppercase font-bold text-sun; }
+  .nudge { @apply flex gap-2.5 items-center px-3.5 py-2.5 rounded-xl bg-pop-soft text-ink text-sm font-semibold; }
+  .stepper { @apply flex items-center justify-between border border-line rounded-[10px] bg-surface min-h-[46px] overflow-hidden; }
+  .stepper > button { @apply w-11 min-h-[46px] text-xl font-semibold text-ink hover:bg-surface-2 disabled:opacity-40; }
+  .stepper > output { @apply font-semibold text-base font-mono; }
+  .kpi { @apply bg-surface border border-line rounded-2xl px-[18px] py-4 flex flex-col gap-1 min-w-0; }
+  .kpi-v { @apply font-serif text-[2.2rem] leading-none tabular-nums tracking-tight; }
+  .tbl th { @apply text-left px-2.5 py-2 text-[11px] tracking-[.07em] uppercase text-ink-3 font-bold border-b border-line whitespace-nowrap; }
+  .tbl td { @apply px-2.5 py-[11px] border-b border-line align-middle; }
+  .tbl tr:last-child td { @apply border-b-0; }
+}
